@@ -22,8 +22,8 @@ for sim in range(N):
     exact.append(stock_exact)
 
 exact = np.array(exact)
-count_sims, bin_sims = np.histogram(sims)
-count_exact, bin_exact = np.histogram(exact)
+count_sims, bin_sims = np.histogram(sims, 100)
+count_exact, bin_exact = np.histogram(exact,100)
 plt.stairs(count_sims, bin_sims, fill=True)
 plt.stairs(count_exact, bin_exact)
 plt.show()
