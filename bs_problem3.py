@@ -33,8 +33,33 @@ def a():
         call_price = bs_formula(stock, strike=K, time=1-time, riskless_rate=r, volatility=sigma)
         calls.append(call_price)
     
-    fig, ax = plt.subplots()
-    ax.plot(np.arange(N), stocks[1:], np.arange(N), calls, np.arange(N), K*np.ones(N))
-    plt.show()
+    return stocks, calls, epsilons
 
-a()
+
+def b(epsilons):
+    dt = 1/252
+    T = 1
+    N = int(1/dt)
+    S0 = 50
+    mu = .15
+    sigma = .5
+    K = 50
+    q = 0
+    r = .13
+    stocks = [S0]
+    calls = []
+    for i, e in enumerate(epsilons):
+        time = i *dt
+        stock = stocks[i] *(1 + mu * dt + sigma*np.sqrt(dt)*e)
+        stocks.append(stock)
+        call_price = bs_formula(stock, K, 1-time, r, sigma)
+        calls.append(call_price)
+    return calls
+
+
+stocks_a, calls_a, epsilons = a()
+calls_b = b(epsilons)
+fig, ax = plt.subplots()
+N = 252
+ax.plot(np.arange(N), stocks_a[1:], np.arange(N), calls_a, np.arange(N), calls_b, np.arange(N), 50*np.ones(N))
+plt.show()

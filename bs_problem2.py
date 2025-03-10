@@ -60,4 +60,4 @@ def b():
     ax.plot(stock[150:], mu[150:],stock[:], sigma[:])
     plt.show()
 
-b()
+a()
