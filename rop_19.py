@@ -18,22 +18,21 @@ def asian_call_avgK(m=100000, S0=1, r=.035, sigma=.3, dt=1/252, barrier=.85, T =
         stocks_nB = [S0]
         stocks_nS = [S0]
         stocks_pS = [S0]
-        for j in range(n):
-            epsilon = np.random.normal(0,1)
-            stockpB = stocks_pB[j]*np.exp((r-1/2*sigma**2)*dt + sigma * np.sqrt(dt)*epsilon)
-            stocknB = stocks_nB[j]*np.exp((r-1/2*sigma**2)*dt - sigma * np.sqrt(dt)*epsilon)
-            stocks_pB.append(stockpB)
-            stocks_nB.append(stocknB)
-            stockpS = stocks_pS[j]*np.exp((r+sigma**2-.5*sigma*2)*dt + sigma*np.sqrt(dt)*epsilon)
-            stocknS = stocks_nS[j]*np.exp((r+sigma**2-.5*sigma*2)*dt - sigma*np.sqrt(dt)*epsilon)
-            stocks_nS.append(stocknS)
-            stocks_pS.append(stockpS)
+        epsilon = np.random.normal(0,1,n)
+        dynamicspB = np.ones(n)*((r-1/2*sigma**2)*dt + epsilon *sigma*np.sqrt(dt))
+        dynamicsnB = np.ones(n)*((r-1/2*sigma**2)*dt - epsilon *sigma*np.sqrt(dt))
+        stocks_pB = S0*np.exp(np.cumsum(dynamicspB))
+        stocks_nB = S0*np.exp(np.cumsum(dynamicsnB))
+        dynamicspS = np.ones(n)*((r+1/2*sigma**2)*dt + epsilon*sigma*np.sqrt(dt))
+        dynamicsnS = np.ones(n)*((r+1/2*sigma**2)*dt - epsilon*sigma*np.sqrt(dt))
+        stocks_pS = S0*np.exp(np.cumsum(dynamicspS))
+        stocks_nS = S0*np.exp(np.cumsum(dynamicsnS))
         pay_p = option_payoff(stocks_pB, barrier)
         pay_n = option_payoff(stocks_nB, barrier)
         payoffs_B.append(np.exp(-r*T)*pay_p)
         payoffs_B.append(np.exp(-r*T)*pay_n)
-        payoffs_S.append(option_payoff(stocks_nS, barrier)/stocknS)
-        payoffs_S.append(option_payoff(stocks_pS, barrier)/stockpS)
+        payoffs_S.append(option_payoff(stocks_nS, barrier)/stocks_nS[-1])
+        payoffs_S.append(option_payoff(stocks_pS, barrier)/stocks_pS[-1])
     ave_pay_B = np.average(payoffs_B)
     ave_pay_S = np.average(payoffs_S)
     return ave_pay_B, ave_pay_S
