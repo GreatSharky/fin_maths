@@ -1,3 +1,4 @@
+"""Aaro Haikonen 283716"""
 import numpy as np
 
 def option_payoff(stocks, barrier):
