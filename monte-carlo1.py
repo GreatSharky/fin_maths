@@ -34,5 +34,7 @@ def asian_call(m, n, S0, K, r, sigma, dt):
         dis_payoffs.append(dis_payoff)
         dis_geom_payoff = np.exp(-r*n*dt)*np.max([stocks_geom_ave-K,0])
         dis_geom_payoffs.append(dis_geom_payoff)
-    c_avg = np.average(dis_payoffs)-b(dis_geom_payoffs, c_geom)*(np.average(dis_geom_payoffs)-c_geom)
+    c_avg = np.average(dis_payoffs)-b(c_geom, dis_geom_payoffs)*(np.average(dis_geom_payoffs)-c_geom)
     return ave_stocks, c_avg
+
+
