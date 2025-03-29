@@ -87,41 +87,39 @@ def problem3(m: int):
     risk free interest rate 3 % and volatility 30 %. Calculate also the percentages of how
     many times the contract was terminated at each observation date.
     """
+    def payoff(stok, strike, barrier):
+        pay = np.max([stok-strike*np.ones(len(stok)),np.zeros(len(stok))],axis=0)
+        diskountedpay = np.exp(-r*(np.arange(len(stok))+1))
+        termination_index = np.where(stok < barrier)[0]
+        if termination_index.size > 0:
+            return np.sum(diskountedpay[:termination_index[0]]), termination_index[0]+1, True
+        else:
+            return np.sum(diskountedpay), 5, False
+    
     ti = [1,2,3,4,5]
-    payoff = lambda s,k: np.max([s-k,0])
     S0 = 100
     K = 110
     barrier = S0*.7
     r = .03
     sigma = .3
     dt = 1
-    kills = 0
-    vals = 0
+    terminations = 0
+    valuations = 0
     options = []
     for i in range(m):
-        pays = 0
-        paysn = 0
-        stocks = [S0]
-        stocksn = [S0]
-        for year in range(len(ti)):
-            vals += 2
-            epsilon = np.random.normal(0,1)
-            stok = stocks[year]*np.exp((r-1/2*sigma**2)*dt + sigma*epsilon*np.sqrt(dt))
-            stokn = stocksn[year]*np.exp((r-1/2*sigma**2)*dt - epsilon *sigma *np.sqrt(dt))
-            call = payoff(stok, K)
-            pays += np.exp(-r*year+1)*call
-            if stok !=0 and stok < barrier:
-                kills += 1
-                stok = 0
-            calln = payoff(stokn, K)
-            paysn += np.exp(-r*year+1)*calln
-            if stokn !=0 and stokn < barrier:
-                kills += 1
-                stokn = 0
-            stocks.append(stok)
-            stocksn.append(stokn)
-        options.append(pays)
-        options.append(paysn)
-    return np.average(options), kills/vals
+        epsilon = np.random.normal(0,1,len(ti))
+        dynamics1 = np.ones(len(ti))*((r-1/2*sigma**2)*dt+epsilon*sigma*np.sqrt(dt))
+        dynamics2 = np.ones(len(ti))*((r-1/2*sigma**2)*dt-epsilon*sigma*np.sqrt(dt))
+        stocks1 = S0*np.exp(np.cumsum(dynamics1))
+        stocks2 = S0*np.exp(np.cumsum(dynamics2))
+        pay1, vals1, ter1 = payoff(stocks1, K, barrier)
+        pay2, vals2, ter2 = payoff(stocks2, K, barrier)
+        terminations += ter1+ter2
+        valuations += vals1 + vals2
+        options.append(pay1)
+        options.append(pay2)
+    return np.average(options), valuations/(2*5*m), terminations/(2*m)
 
-print(problem3(int(10000)))
+print(problem1())
+print(problem2(1000000))
+print(problem3(1000000))
