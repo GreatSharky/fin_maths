@@ -61,8 +61,8 @@ def problem2(m: int):
     dni_payoffs = []
     for i in range(m):
         epsilon = np.random.normal(0,1,days)
-        dynamics = np.ones(days)*((r-1/2*sigma**2)*1/days + epsilon*sigma*np.sqrt(1/days))
-        dynamicsn = np.ones(days)*((r-1/2*sigma**2)*1/days - epsilon*sigma*np.sqrt(1/days))
+        dynamics = np.ones(days)*(r-1/2*sigma**2)*1/days + epsilon*sigma*np.sqrt(1/days)
+        dynamicsn = np.ones(days)*(r-1/2*sigma**2)*1/days - epsilon*sigma*np.sqrt(1/days)
         ST = S0*np.exp(np.cumsum(dynamics))
         STn = S0*np.exp(np.cumsum(dynamicsn))
         diskount = np.exp(-r*T)
@@ -89,7 +89,7 @@ def problem3(m: int):
     """
     def payoff(stok, strike, barrier):
         pay = np.max([stok-strike*np.ones(len(stok)),np.zeros(len(stok))],axis=0)
-        diskountedpay = np.exp(-r*(np.arange(len(stok))+1))
+        diskountedpay = np.exp(-r*(np.arange(len(stok))+1))*pay
         termination_index = np.where(stok < barrier)[0]
         if termination_index.size > 0:
             return np.sum(diskountedpay[:termination_index[0]]), termination_index[0]+1, True
@@ -120,6 +120,6 @@ def problem3(m: int):
         options.append(pay2)
     return np.average(options), valuations/(2*5*m), terminations/(2*m)
 
-print(problem1())
-print(problem2(1000000))
-print(problem3(1000000))
+print(problem3(100000))
+print(problem3(100000))
+print(problem3(100000))

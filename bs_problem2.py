@@ -14,7 +14,7 @@ def theta(stock, strike, time):
     cdf = sp.stats.norm.cdf
     pdf = sp.stats.norm.pdf
     d1 = (np.log(stock/strike) +  (r - dividend_yield + 1/2*volatility**2)*(time))/(volatility*np.sqrt(time))
-    d2 = (np.log(stock/strike) + (r - dividend_yield-1/2*volatility**2)*(time))
+    d2 = (np.log(stock/strike) + (r - dividend_yield - 1/2*volatility**2)*(time))
     one = -(stock*pdf(d1)*volatility*np.exp(-dividend_yield*(time)))/(2*np.sqrt(time))
     two = dividend_yield*stock*cdf(d1)*np.exp(-dividend_yield*(time))
     three = -r*strike*np.exp(-r*(time))*cdf(d2)
