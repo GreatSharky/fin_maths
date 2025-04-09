@@ -7,17 +7,36 @@ rho = settings.parameters0(4);
 V0 = settings.parameters0(5);
 param = [V0, kappa, theta, eta, rho];
 
+
 options = settings.calibrOptions;
 fun = @(x) lossfunction(x, data, settings);
 for i = 1:100
-    i
     param = create_ini_params(param, settings);
- [param_final, fFinal, exitFlag] = fminsearch(fun, param, options);
-loss_matrix(i) = fFinal;
-param_matrix(i,:) = [fFinal, param_final];
+    [param_final, fFinal, exitFlag] = fminsearch(fun, param, options);
+    loss_matrix(i) = fFinal;
+    param_matrix(i,:) = [fFinal, param_final];
+    break
 end
 % Best_param = 0.020884593943414   5.347473692942446   0.000682258718764   0.286788948704852  -0.602970312709901
+std = calculate_std(param_final, data, settings.model)
 
+function std = calculate_std(param, data, model)
+    T = data.T;
+    S0 = data.S0;
+    K = data.K;
+    r = data.r;
+    params = {param(1), param(2), param(3), param(4), param(5)};
+    f =@(x) CallPricingFFT(model, 13, S0, K(4), T(4), r, 0, x{:});
+    model_iv = ones(length(data.T), length(data.K));
+    for i = 1 : length(data.T)
+        call = abs(S0.*CallPricingFFT(model, 13, S0, K, T(i), r, 0, params{:}));
+        model_iv(i,:) = blsimpv(S0, K, data.r, T(i), call);
+    end
+    error = (data.IVolSurf(:) - model_iv(:)).^2;
+    J = jacobianest(f,params);
+    sigma2 = error/(length(error)-length(params));
+    std = sqrt(sigma2*diag(J/J));
+end
 
 
 function hestonIV = ivmse(model, S0, K, T, r, parameters)
