@@ -9,33 +9,51 @@ param = [V0, kappa, theta, eta, rho];
 
 
 options = settings.calibrOptions;
+%options.PlotFcns = @optimplotfval;
 fun = @(x) lossfunction(x, data, settings);
-for i = 1:100
+for i = 1:10
     param = create_ini_params(param, settings);
     [param_final, fFinal, exitFlag] = fminsearch(fun, param, options);
     loss_matrix(i) = fFinal;
     param_matrix(i,:) = [fFinal, param_final];
-    break
 end
-% Best_param = 0.020884593943414   5.347473692942446   0.000682258718764   0.286788948704852  -0.602970312709901
-std = calculate_std(param_final, data, settings.model)
+[best, i] = min(loss_matrix)
+best_param = param_matrix(i, 2:end)
+iv = iv_from_model(data, settings.model, best_param);
+%param_final = [0.020884593943414   5.347473692942446   0.000682258718764   0.286788948704852  -0.602970312709901]
+std = calculate_std(best_param, data, settings.model)
+ivolsurf = data.IVolSurf;
+[xK, yT] = meshgrid(data.K, data.T);
+
+surf(xK, yT, ivolsurf)
+hold on
+surf(xK, yT, iv)
+
 
 function std = calculate_std(param, data, model)
+    fun = @(x) iv_from_model(data, model, x);
+    iv = fun(param);
+    iv(isnan(iv)) = 0;
+    stderror = sum((data.IVolSurf(:)-iv(:)).^2);
+    J = jacobianest(fun,param);
+    sigma2 = stderror/(8*42);
+    J(isnan(J)) = 0;
+    Jnew = J.'*J;
+    diagJ = diag(inv(Jnew));
+    std = sqrt(sigma2*diagJ);
+end
+
+function ivs = iv_from_model(data, model, param)
     T = data.T;
     S0 = data.S0;
     K = data.K;
     r = data.r;
     params = {param(1), param(2), param(3), param(4), param(5)};
-    f =@(x) CallPricingFFT(model, 13, S0, K(4), T(4), r, 0, x{:});
-    model_iv = ones(length(data.T), length(data.K));
-    for i = 1 : length(data.T)
-        call = abs(S0.*CallPricingFFT(model, 13, S0, K, T(i), r, 0, params{:}));
-        model_iv(i,:) = blsimpv(S0, K, data.r, T(i), call);
+    ivs = ones(length(T), length(K));
+    for i = 1: length(T)
+        call = abs(S0.*CallPricingFFT(model,13,S0, K, T(i), r, 0, params{:}));
+        ivs(i,:) = blsimpv(S0, K, r, T(i), call);
     end
-    error = (data.IVolSurf(:) - model_iv(:)).^2;
-    J = jacobianest(f,params);
-    sigma2 = error/(length(error)-length(params));
-    std = sqrt(sigma2*diag(J/J));
 end
 
 
