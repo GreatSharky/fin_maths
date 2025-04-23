@@ -5,88 +5,97 @@ theta = settings.parameters0(2);
 eta = settings.parameters0(3);
 rho = settings.parameters0(4);
 V0 = settings.parameters0(5);
-param = [V0, kappa, theta, eta, rho];
+param = [V0, theta, kappa, eta, rho];
 
 
 options = settings.calibrOptions;
 %options.PlotFcns = @optimplotfval;
-fun = @(x) lossfunction(x, data, settings);
-for i = 1:10
+marketsurf = data.IVolSurf;
+T = data.T;
+K = data.K;
+[K_grid, T_grid] = meshgrid(K,T);
+Kq = linspace(K(1), K(end),length(K)*2);
+Tq = linspace(T(1), T(end),length(T)*2);
+[K_fine, T_fine] = meshgrid(Kq,Tq);
+ivolsurf = interp2(K_grid,T_grid,marketsurf,K_fine,T_fine, "spline")
+T_train = Tq(1:3:end);
+K_train = Kq(1:3:end);
+[Ktm, Ttm] = meshgrid(K_train,T_train);
+trainsurf = interp2(K_grid,T_grid,marketsurf, Ktm, Ttm, "spline");
+
+
+fun = @(x) lossfunction(x, trainsurf, T_train, K_train, data.S0, data.r, settings);
+loss_matrix = ones(10,1);
+param_matrix = ones(10,6);
+for i = 1:1
     param = create_ini_params(param, settings);
     [param_final, fFinal, exitFlag] = fminsearch(fun, param, options);
     loss_matrix(i) = fFinal;
     param_matrix(i,:) = [fFinal, param_final];
 end
-[best, i] = min(loss_matrix)
-best_param = param_matrix(i, 2:end)
-iv = iv_from_model(data, settings.model, best_param);
-%param_final = [0.020884593943414   5.347473692942446   0.000682258718764   0.286788948704852  -0.602970312709901]
-std = calculate_std(best_param, data, settings.model)
-ivolsurf = data.IVolSurf;
-[xK, yT] = meshgrid(data.K, data.T);
-
-surf(xK, yT, ivolsurf)
+[best, i] = min(param_matrix(:,1));
+best_param = param_matrix(i, 2:end);
+%best_param = [0.009440999020213   0.024027067816512   6.269306586503538   1.138162143538139  -0.570006542371787]
+std_calc = @(x) calculate_std(x, data, settings.model);
+[std, loss] = std_calc(best_param);
+loss
+best_param
+std = std'
+model = @(x) model_ivs(data.T, data.S0, data.K, data.r, settings.model, x);
+iv = model(best_param); 
+figure
+% surf(Ktm, Ttm, trainsurf)
+surf(K_grid,T_grid, marketsurf)
 hold on
-surf(xK, yT, iv)
+surf(K_grid,T_grid, iv, "EdgeColor", "red")
 
 
-function std = calculate_std(param, data, model)
-    fun = @(x) iv_from_model(data, model, x);
+function [std, loss] = calculate_std(param, data, model)
+    fun = @(x) model_ivs(data.T, data.S0, data.K, data.r, model, x);
     iv = fun(param);
-    iv(isnan(iv)) = 0;
-    stderror = sum((data.IVolSurf(:)-iv(:)).^2);
+    mask_iv = ~isnan(iv(:));
+    stderror = sum((data.IVolSurf(mask_iv)-iv(mask_iv)).^2);
     J = jacobianest(fun,param);
-    sigma2 = stderror/(8*42);
-    J(isnan(J)) = 0;
+    J = J(mask_iv,:);
+    shape = size(J);
+    sigma2 = stderror/(shape(1)-shape(2));
     Jnew = J.'*J;
     diagJ = diag(inv(Jnew));
+    loss = mse(data.IVolSurf, iv);
     std = sqrt(sigma2*diagJ);
 end
 
-function ivs = iv_from_model(data, model, param)
-    T = data.T;
-    S0 = data.S0;
-    K = data.K;
-    r = data.r;
+function ivs = model_ivs(T,S0, K, r, model, param)
     params = {param(1), param(2), param(3), param(4), param(5)};
     ivs = ones(length(T), length(K));
     for i = 1: length(T)
-        call = abs(S0.*CallPricingFFT(model,13,S0, K, T(i), r, 0, params{:}));
-        ivs(i,:) = blsimpv(S0, K, r, T(i), call);
+        call_price = S0.*CallPricingFFT(model,14,S0, K, T(i), r, 0, params{:});
+        call_price = max(call_price, 1E-8);
+        iv = blsimpv(S0, K, r, T(i), call_price);
+        ivs(i,:) = iv;
     end
 end
 
-
-function hestonIV = ivmse(model, S0, K, T, r, parameters)
-    hestonIV = ones(length(T), length(K));
-    for i = 1:length(T)
-        call = abs(S0.*CallPricingFFT(model, 13, S0, K, T(i), r, 0, parameters{:}));
-        implied_volatility = blsimpv(S0,K,r,T(i),call);
-        hestonIV(i,:) = implied_volatility;
-    end
-end
-
-function loss = lossfunction(param, data, settings)
+function loss = lossfunction(param, surface, T,K,S0, r, settings)
     inside = inbounds(param, settings);
     if inside
-        r = data.r;
-        S0 = data.S0;
-        K = data.K;
-        T = data.T;
-        parameters = {param(1), param(2), param(3), param(4), param(5)};
-        heston = ivmse(settings.model, S0, K, T, r, parameters);
-        loss = mse(data.IVolSurf, heston);
+        heston = model_ivs(T, S0, K, r, settings.model, param);
+        if any(isnan(heston), "all")
+            loss = 1E3;
+        else
+            loss = mse(surface, heston);
+        end
     else
-        loss = 1E6;
+        loss = 1E3;
     end
 end
 
 function inside_bounds = inbounds(param, settings)
     if param(1) < settings.minV0 || param(1) > settings.maxV0
         inside_bounds = false;
-    elseif param(2) < settings.minKappa || param(2) > settings.maxKappa
+    elseif param(3) < settings.minKappa || param(3) > settings.maxKappa
         inside_bounds = false;
-    elseif param(3) < settings.minTheta || param(3) > settings.maxKappa
+    elseif param(2) < settings.minTheta || param(2) > settings.maxKappa
         inside_bounds = false;
     elseif param(4) < settings.minEta || param(4) > settings.maxEta
         inside_bounds = false;
@@ -100,9 +109,11 @@ end
 function params = create_ini_params(params, settings)
     random_params = rand(5);
     v0 = settings.minV0 + abs(settings.maxV0-settings.minV0)*random_params(1);
-    kappa = settings.minKappa + abs(settings.maxKappa-settings.minKappa)*random_params(2);
-    theta = settings.minTheta + abs(settings.maxTheta-settings.minTheta)*random_params(3);
+    kappa = settings.minKappa + abs(settings.maxKappa-settings.minKappa)*random_params(3);
+    theta = settings.minTheta + abs(settings.maxTheta-settings.minTheta)*random_params(2);
     eta = settings.minEta + abs(settings.maxEta-settings.minEta)*random_params(4);
     rho = settings.minRho + abs(settings.maxRho-settings.minRho)*random_params(5);
-    params = [v0, kappa, theta, eta, rho];
+    params = [v0, theta, kappa, eta, rho];
 end
+
+
