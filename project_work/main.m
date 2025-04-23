@@ -1,23 +1,19 @@
+% First calibrate model
 
+[params, std, loss, p] = model_calibration(1, "empVolatilitySurfaceData.mat", true);
+disp(['Heston model params: ', num2str(params)]);
+disp(['STD: ', num2str(std)])
+disp(['Model loss: ', num2str(loss)])
 
-% Optimization settings
-OptSettings.MaxFunEvals = 500;
-OptSettings.MaxIter = 200;
-OptSettings.TolFun = 1e-10;
-OptSettings.TolX = 1e-10;
-OptSettings.Display = 'iter';
-OptSettings.FunValCheck = 'on';
+% Price Down and In Asian call option
+S0 = 1;
+barrier = .85;
+dt = 1/252;
+T = 1;
+iterations = 1E6;
+r = .0466;
 
-% Function to be minimized
-fun = @(x)lossFunction(x);
+[option_price, avg_stock, stocks] = option_pricing(S0, dt, barrier, T, iterations, r, params);
 
-% Initial values 
-param0 = [-4, -2];
+disp(['Heston call: ', num2str(option_price)]);
 
-% Optimization
-[param_final, fFinal, exitFlag] = fminsearch(fun, param0, OptSettings);
-%[param_final, fFinal, exitFlag] = fminunc(fun, param0, OptSettings);
-
-
-disp(['Starting values: ', num2str(param0)]);
-disp(['Optimized values: ', num2str(param_final)]);
