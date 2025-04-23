@@ -1,7 +1,8 @@
-function [model_parameters, std, loss, param_matrix] = model_calibration(iterations, data_file, draw_results)
+function [model_parameters, std, loss, param_matrix, best_initial_params] = model_calibration(initial_params, data_file, iterations, draw_results)
     d = load(data_file);
     data = d.data;
     settings = calibrationSettings;
+    param = initial_params;
     
     options = settings.calibrOptions;
     %options.PlotFcns = @optimplotfval;
@@ -18,15 +19,16 @@ function [model_parameters, std, loss, param_matrix] = model_calibration(iterati
     
     
     fun1 = @(x) lossfunction(x, trainsurf, T_train, K_train, data.S0, data.r, settings);
-    loss_matrix = ones(10,1);
-    param_matrix = ones(10,6);
+    ini_matrix = ones(iterations,5);
+    param_matrix = ones(iterations,6);
     for j = 1:iterations
-        param = create_ini_params(settings);
         [param_final, fFinal, exitFlag] = fminsearch(fun1, param, options);
-        loss_matrix(j) = fFinal;
+        ini_matrix(j,:) = param;
         param_matrix(j,:) = [fFinal, param_final];
+        param = create_ini_params(settings);
     end
     [best, index] = min(param_matrix(:,1));
+    best_initial_params = ini_matrix(index,:);
     best_param = param_matrix(index, 2:end);
     % best_param = [0.009415411834850   0.024027732885822   6.270622086572633   1.138496430434848  -0.570134584083674]
     std_calc = @(x) calculate_std(x, data, settings.model);
