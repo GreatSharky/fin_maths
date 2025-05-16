@@ -16,5 +16,5 @@ r = .0466;
 
 [option_price, avg_stock, stocks] = option_pricing(S0, dt, barrier, T, iterations, r, params);
 
-disp(['Heston call: ', num2str(option_price)]);
+disp(['Down and In Asian call option value: ', num2str(option_price)]);
 
